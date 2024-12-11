@@ -1,0 +1,32 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "02e386ee34d3818909aa97ff64cbf87d"
+name = "review-remix-app"
+handle = "review-remix-app"
+application_url = "https://believes-ordinance-buttons-including.trycloudflare.com"
+embedded = true
+
+[build]
+automatically_update_urls_on_dev = true
+dev_store_url = "aniket-review-app.myshopify.com"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_products"
+
+[auth]
+redirect_urls = [
+  "https://believes-ordinance-buttons-including.trycloudflare.com/auth/callback",
+  "https://believes-ordinance-buttons-including.trycloudflare.com/auth/shopify/callback",
+  "https://believes-ordinance-buttons-including.trycloudflare.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-10"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+[pos]
+embedded = false
