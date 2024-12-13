@@ -1,69 +1,71 @@
 <div class="star-rating" id="star-rating">
   {% if customer %}
-  <div class="star-rating__container" id="star-container">
-    <!-- Render Stars -->
-    <span 
-      class="star" 
-      data-star="1"
-      tabindex="0"
-      role="button"
-      aria-label="Rate 1 star"
-    >
-      &#9733;
-    </span>
-    <span 
-      class="star" 
-      data-star="2"
-      tabindex="0"
-      role="button"
-      aria-label="Rate 2 stars"
-    >
-      &#9733;
-    </span>
-    <span 
-      class="star" 
-      data-star="3"
-      tabindex="0"
-      role="button"
-      aria-label="Rate 3 stars"
-    >
-      &#9733;
-    </span>
-    <span 
-      class="star" 
-      data-star="4"
-      tabindex="0"
-      role="button"
-      aria-label="Rate 4 stars"
-    >
-      &#9733;
-    </span>
-    <span 
-      class="star" 
-      data-star="5"
-      tabindex="0"
-      role="button"
-      aria-label="Rate 5 stars"
-    >
-      &#9733;
-    </span>
-  </div>
+    <div class="star-rating__container" id="star-container">
+      <!-- Render Stars -->
+      <span 
+        class="star" 
+        data-star="1"
+        tabindex="0"
+        role="button"
+        aria-label="Rate 1 star"
+      >
+        &#9733;
+      </span>
+      <span 
+        class="star" 
+        data-star="2"
+        tabindex="0"
+        role="button"
+        aria-label="Rate 2 stars"
+      >
+        &#9733;
+      </span>
+      <span 
+        class="star" 
+        data-star="3"
+        tabindex="0"
+        role="button"
+        aria-label="Rate 3 stars"
+      >
+        &#9733;
+      </span>
+      <span 
+        class="star" 
+        data-star="4"
+        tabindex="0"
+        role="button"
+        aria-label="Rate 4 stars"
+      >
+        &#9733;
+      </span>
+      <span 
+        class="star" 
+        data-star="5"
+        tabindex="0"
+        role="button"
+        aria-label="Rate 5 stars"
+      >
+        &#9733;
+      </span>
+    </div>
 
-  <!-- Current Rating Display -->
-  <div class="current-rating" id="current-rating">Average Rating: 0</div>
+    <!-- Current Rating Display -->
+    <div class="current-rating" id="current-rating">Average Rating: 0</div>
 
-  <!-- Recommendation Text -->
-  <div class="recommendation" id="recommendation" style="display: none;">
-    <img src="{{ 'thumbs-up.png' | asset_img_url: '15x' }}" height="15" width="15" loading="lazy" alt="Thumbs Up">
-    {{ 'ratings.home.recommendationText' | t }}
-  </div>
+    <!-- Recommendation Text -->
+    <div class="recommendation" id="recommendation" style="display: none;">
+      <img src="{{ 'thumbs-up.png' | asset_img_url: '15x' }}" height="15" width="15" loading="lazy" alt="Thumbs Up">
+      {{ 'ratings.home.recommendationText' | t }}
+    </div>
 
-  <!-- Conditional Content Based on Customer Login Status -->
-  
+    <!-- Conditional Content Based on Customer Login Status -->
     <div class="customer-info">
       <p>Welcome, <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>!</p>
       <p>Email: <strong>{{ customer.email }}</strong></p>
       
+      <!-- Display how many ratings the user has given -->
+      <p id="user-rating-count" style="display: none;"></p>
+
       <!-- Review Form -->
       <form id="simpleForm">
         <label for="userInput">Enter Review</label>
@@ -86,18 +88,6 @@
   {% endif %}
 </div>
 
-{% schema %}
-{
-  "name": "Star Rating",
-  "target": "section",
-  "settings": [
-    { "type": "product", "id": "product", "label": "Product", "autofill": true },
-    { "type": "color", "id": "colour", "label": "Star Colour", "default": "#ff0000" },
-    { "type": "text", "id": "app_url", "label": "App URL", "default": "https://aniket-review-app.myshopify.com/" }
-  ]
-}
-{% endschema %}
-
 <!-- Include Vanilla JavaScript -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
@@ -108,10 +98,11 @@
     const reviewForm = document.getElementById('simpleForm');
     const reviewDisplay = document.getElementById('review-display');
     const reviewTextElem = document.getElementById('review-text');
+    const userRatingCountElem = document.getElementById('user-rating-count');
 
     // Configuration from Liquid settings
     const starColor = "{{ block.settings.colour }}";
-    const appUrl = "http://localhost:41051/"; // Dynamically set from Liquid
+    const appUrl = "http://localhost:39555/"; // Dynamically set from Liquid
     const productId = "{{ block.settings.product.id }}";
     const shop = "{{ shop.permanent_domain }}";
     let currentRating = 0;  // Start with default rating of 0
@@ -124,7 +115,6 @@
         firstName: "{{ customer.first_name | escape }}",
         lastName: "{{ customer.last_name | escape }}",
         email: "{{ customer.email | escape }}"
-        // Add more fields as needed
       };
       console.log("Logged in customer:", customer);
     {% else %}
@@ -137,10 +127,13 @@
       stars.forEach(star => {
         const starValue = parseInt(star.getAttribute('data-star'));
         if (hoverRating >= starValue) {
-          star.style.color = '#FFD700'; // Gold for hover
+          // Hover color (gold)
+          star.style.color = '#FFD700';
         } else if (starValue <= currentRating) {
+          // Selected rating color
           star.style.color = starColor;
         } else {
+          // Default color
           star.style.color = '#ccc';
         }
       });
@@ -168,7 +161,7 @@
         productId: productId,
         rating: rating,
         shop: shop,
-        customerId: customer.id
+        clientId: customer.id
       };
 
       fetch(`${appUrl}api/rating`, {
@@ -181,9 +174,12 @@
       .then(response => response.json())
       .then(data => {
         if(data.ok){
-          // After successful submission, fetch the latest average rating
+          // After successful submission, fetch the latest average rating without clientId
           fetchLatestRating();
           console.log('Thank you for your rating!');
+          disableRating(); // Disable further rating as client has now rated
+          // Update the client rating count
+          checkClientRating();
         } else {
           console.log(data.message || 'There was an error submitting your rating. Please try again.');
         }
@@ -194,7 +190,7 @@
       });
     }
 
-    // Fetch the latest average rating for the product after submitting a new rating
+    // Fetch the latest average rating (no clientId here)
     function fetchLatestRating() {
       fetch(`${appUrl}api/rating?productId=${productId}&shop=${shop}`, {
         method: 'GET',
@@ -202,7 +198,7 @@
       .then(response => response.json())
       .then(data => {
         if (data.ok) {
-          currentRating = data.data.avg_rating || 0; // Use the retrieved average rating
+          currentRating = data.data.avg_rating || 0; 
           updateStars();
           updateCurrentRating();
         } else {
@@ -214,7 +210,63 @@
       });
     }
 
-    // Event listeners for stars
+    // Function to check if the client has already rated (with clientId)
+    function checkClientRating() {
+      if (!customer) return; // If not logged in, no need to check
+      
+      const url = `${appUrl}api/rating?productId=${productId}&shop=${shop}&client=${customer.id}`;
+      fetch(url, {
+        method: 'GET',
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok && data.data.reviews) {
+          const userRatingCount = data.data.reviews.length;
+          if (userRatingCount > 0) {
+            // User already gave a rating
+            disableRating();
+            userRatingCountElem.style.display = 'block';
+            userRatingCountElem.textContent = `You have submitted rating(s) for this product.`;
+            console.log("You have already submitted a rating for this product.");
+          } else {
+            // User hasn't rated yet
+            enableRating(); // Re-enable rating for this user
+            userRatingCountElem.style.display = 'none';
+            userRatingCountElem.textContent = '';
+            console.log("You can submit a rating.");
+          }
+        } else {
+          // If no reviews found or error, assume user can rate
+          enableRating();
+          userRatingCountElem.style.display = 'none';
+          userRatingCountElem.textContent = '';
+          console.log('No ratings found or error fetching client-specific rating. Enabling rating by default.');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching client-specific rating:', error);
+        // If there's an error, let's assume we should allow rating
+        enableRating();
+      });
+    }
+
+    // Disable rating submission for the stars
+    function disableRating() {
+      stars.forEach(star => {
+        star.style.pointerEvents = 'none';
+        star.style.opacity = '0.5';
+      });
+    }
+
+    // Enable rating submission for the stars
+    function enableRating() {
+      stars.forEach(star => {
+        star.style.pointerEvents = 'auto';
+        star.style.opacity = '1';
+      });
+    }
+
+    // Add event listeners for stars interaction
     stars.forEach(star => {
       star.addEventListener('mouseover', () => {
         hoverRating = parseInt(star.getAttribute('data-star'));
@@ -263,7 +315,7 @@
           productId: productId,
           shop: shop,
           ratingDescription: userInput,
-          loggedIn: customer.email, // Include customer's email
+          loggedIn: customer.email,
           clientId: customer.id
         };
 
@@ -278,9 +330,7 @@
         .then(data => {
           if(data.ok){
             console.log('Your review has been submitted successfully!');
-            // Fetch the first review and update the UI
             fetchFirstReviewDescription();
-            // Hide the form and show the review display
             reviewForm.style.display = 'none';
             reviewDisplay.style.display = 'block';
           } else {
@@ -294,8 +344,10 @@
       });
     }
 
-    // Function to fetch the first review's ratingDescription and set it to the input
+    // Fetch and set the first review's ratingDescription for the logged-in client (with clientId)
     function fetchFirstReviewDescription() {
+      if (!customer) return;
+      
       const url = `${appUrl}api/review?productId=${productId}&shop=${shop}&client=${customer.id}`;
       fetch(url, {
         method: 'GET',
@@ -305,7 +357,6 @@
         if (data.ok && data.reviews && data.reviews.length > 0) {
           const firstReviewDescription = data.reviews[0].ratingDescription;
           reviewTextElem.textContent = firstReviewDescription;
-          // Show the review display and hide the form
           reviewDisplay.style.display = 'block';
           if (reviewForm) {
             reviewForm.style.display = 'none';
@@ -313,7 +364,6 @@
           console.log('First review description set:', firstReviewDescription);
         } else {
           console.log('No reviews found or error fetching reviews.');
-          // Ensure the form is visible and the review display is hidden
           if (reviewForm) {
             reviewForm.style.display = 'block';
           }
@@ -322,7 +372,6 @@
       })
       .catch(error => {
         console.error('Error fetching first review description:', error);
-        // Ensure the form is visible and the review display is hidden
         if (reviewForm) {
           reviewForm.style.display = 'block';
         }
@@ -331,9 +380,9 @@
     }
 
     // Initial fetch and render
-    fetchLatestRating();
-    // Fetch and set the first review's ratingDescription
-    fetchFirstReviewDescription();
+    fetchLatestRating();          // Fetch average rating (no clientId)
+    fetchFirstReviewDescription(); // Fetch user's reviews (with clientId)
+    checkClientRating();           // Check if the client has rated (with clientId)
   });
 </script>
 
@@ -352,6 +401,10 @@
     font-size: 2rem;
     transition: color 0.2s;
     color: #ccc; /* Default color */
+    outline: none;
+  }
+  .star:focus {
+    outline: 2px solid #007bff; /* highlight outline for accessibility focus */
   }
   .current-rating {
     margin-top: 0.5rem;
@@ -407,3 +460,15 @@
     margin-top: 0.5rem;
   }
 </style>
+
+{% schema %}
+{
+  "name": "Star Rating",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    { "type": "color", "id": "colour", "label": "Star Colour", "default": "#ff0000" },
+    { "type": "text", "id": "app_url", "label": "App URL", "default": "https://aniket-review-app.myshopify.com/" }
+  ]
+}
+{% endschema %}

@@ -7,6 +7,7 @@ type ReviewPayload = {
     productId: string;
     shop: string;
     rating: number;
+    clientId: string;
 };
 
 // Action for handling POST (submitting a review)
@@ -29,13 +30,13 @@ export async function action({ request }: { request: Request }) {
         data = Object.fromEntries(formData) as any;
     }
 
-    const { productId, shop, rating } = data;
+    const { productId, shop, rating, clientId } = data;
 
     // Validate required fields
-    if (!productId || !shop || rating === undefined) {
+    if (!productId || !shop || !clientId) {
         return json({
             ok: false,
-            message: "Missing data. Required data: productId, shop, rating",
+            message: "Missing data. Required data: productId, shop, rating, clientId",
         }, { status: 400 });
     }
 
@@ -48,7 +49,23 @@ export async function action({ request }: { request: Request }) {
     }
 
     try {
-        // Fetch existing ratings for the product
+        // Check if the customer has already submitted a rating for this product and shop
+        const existingRating = await db.review.findFirst({
+            where: {
+                productId: productId,
+                shop: shop,
+                clientId: clientId,
+            },
+        });
+
+        if (existingRating) {
+            return json({
+                ok: false,
+                message: "You have already submitted a rating for this product.",
+            }, { status: 400 });
+        }
+
+        // Fetch existing ratings to calculate the average rating
         const productRatings = await db.review.findMany({
             where: {
                 productId: productId,
@@ -58,7 +75,7 @@ export async function action({ request }: { request: Request }) {
 
         const totalRatings = productRatings.length;
         const totalScore = productRatings.reduce((acc, review) => acc + review.rating, 0);
-        const avgRating = totalRatings > 0 ? (totalScore + rating) / (totalRatings + 1) : rating; // Include new rating in the average
+        const avgRating = totalRatings > 0 ? (totalScore + rating) / (totalRatings + 1) : rating;
 
         // Save the new rating in the database
         await db.review.create({
@@ -66,6 +83,7 @@ export async function action({ request }: { request: Request }) {
                 productId,
                 shop,
                 rating,
+                clientId, // Save clientId
             },
         });
 
@@ -74,7 +92,7 @@ export async function action({ request }: { request: Request }) {
             message: "Rating submitted successfully.",
             data: {
                 avg_rating: avgRating,
-            }
+            },
         });
     } catch (error) {
         console.error("Error submitting rating:", error);
@@ -90,6 +108,7 @@ export async function loader({ request }: { request: Request }) {
     const url = new URL(request.url);
     const productId = url.searchParams.get("productId");
     const shop = url.searchParams.get("shop");
+    const clientId = url.searchParams.get("client"); // Optional parameter
 
     if (!productId || !shop) {
         return json({
@@ -99,14 +118,25 @@ export async function loader({ request }: { request: Request }) {
     }
 
     try {
-        // Fetch all reviews for the product and shop
+        // Build query conditions
+        const whereCondition: any = {
+            productId: productId,
+            shop: shop,
+        };
+
+        if (clientId) {
+            whereCondition.clientId = clientId; // Include clientId if provided
+        }
+
+        // Fetch all reviews matching the conditions
         const productRatings = await db.review.findMany({
-            where: {
-                productId: productId,
-                shop: shop,
+            where: whereCondition,
+            orderBy: {
+                createdAt: "desc",
             },
         });
 
+        // Calculate average rating
         const totalRatings = productRatings.length;
         const totalScore = productRatings.reduce((acc, review) => acc + review.rating, 0);
         const avgRating = totalRatings > 0 ? totalScore / totalRatings : 0;
@@ -116,7 +146,7 @@ export async function loader({ request }: { request: Request }) {
             data: {
                 reviews: productRatings,
                 avg_rating: avgRating,
-            }
+            },
         });
     } catch (error) {
         console.error("Error fetching reviews:", error);
@@ -126,3 +156,5 @@ export async function loader({ request }: { request: Request }) {
         }, { status: 500 });
     }
 }
+
+

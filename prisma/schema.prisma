@@ -37,7 +37,7 @@ model Review {
   shop          String   // The shop to which the product belongs
   createdAt     DateTime @default(now()) // Timestamp for when the review was created
   rating        Int      // Rating given by the customer, an integer between 1 and 5
-
+  clientId      String
   // Index for faster querying (optional)
   @@index([productId, shop])
 }

@@ -3,7 +3,7 @@
 client_id = "02e386ee34d3818909aa97ff64cbf87d"
 name = "review-remix-app"
 handle = "review-remix-app"
-application_url = "https://jim-king-critical-exceptions.trycloudflare.com"
+application_url = "https://unsubscribe-roads-specifically-soonest.trycloudflare.com"
 embedded = true
 
 [build]
@@ -16,9 +16,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://jim-king-critical-exceptions.trycloudflare.com/auth/callback",
-  "https://jim-king-critical-exceptions.trycloudflare.com/auth/shopify/callback",
-  "https://jim-king-critical-exceptions.trycloudflare.com/api/auth/callback"
+  "https://unsubscribe-roads-specifically-soonest.trycloudflare.com/auth/callback",
+  "https://unsubscribe-roads-specifically-soonest.trycloudflare.com/auth/shopify/callback",
+  "https://unsubscribe-roads-specifically-soonest.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
