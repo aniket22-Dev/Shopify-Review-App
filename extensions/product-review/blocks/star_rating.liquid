@@ -1,0 +1,409 @@
+<div class="star-rating" id="star-rating">
+  {% if customer %}
+  <div class="star-rating__container" id="star-container">
+    <!-- Render Stars -->
+    <span 
+      class="star" 
+      data-star="1"
+      tabindex="0"
+      role="button"
+      aria-label="Rate 1 star"
+    >
+      &#9733;
+    </span>
+    <span 
+      class="star" 
+      data-star="2"
+      tabindex="0"
+      role="button"
+      aria-label="Rate 2 stars"
+    >
+      &#9733;
+    </span>
+    <span 
+      class="star" 
+      data-star="3"
+      tabindex="0"
+      role="button"
+      aria-label="Rate 3 stars"
+    >
+      &#9733;
+    </span>
+    <span 
+      class="star" 
+      data-star="4"
+      tabindex="0"
+      role="button"
+      aria-label="Rate 4 stars"
+    >
+      &#9733;
+    </span>
+    <span 
+      class="star" 
+      data-star="5"
+      tabindex="0"
+      role="button"
+      aria-label="Rate 5 stars"
+    >
+      &#9733;
+    </span>
+  </div>
+
+  <!-- Current Rating Display -->
+  <div class="current-rating" id="current-rating">Average Rating: 0</div>
+
+  <!-- Recommendation Text -->
+  <div class="recommendation" id="recommendation" style="display: none;">
+    <img src="{{ 'thumbs-up.png' | asset_img_url: '15x' }}" height="15" width="15" loading="lazy" alt="Thumbs Up">
+    {{ 'ratings.home.recommendationText' | t }}
+  </div>
+
+  <!-- Conditional Content Based on Customer Login Status -->
+  
+    <div class="customer-info">
+      <p>Welcome, <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>!</p>
+      <p>Email: <strong>{{ customer.email }}</strong></p>
+      
+      <!-- Review Form -->
+      <form id="simpleForm">
+        <label for="userInput">Enter Review</label>
+        <input type="text" id="userInput" name="userInput" placeholder="Type Review..." required>
+        <button type="submit" id="submitButton">Submit</button>
+      </form>
+      
+      <!-- Existing Review Display -->
+      <div class="review-display" id="review-display" style="display: none;">
+        <p><strong>Your Review:</strong></p>
+        <p id="review-text"></p>
+        <p class="success-message">Your review has been submitted successfully!</p>
+      </div>
+    </div>
+  {% else %}
+    <!-- Sign-In Button for Guests -->
+    <div class="guest-actions">
+      <p>Please <a href="/account/login" class="sign-in-button">Sign In</a> to submit your review.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "Star Rating",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    { "type": "color", "id": "colour", "label": "Star Colour", "default": "#ff0000" },
+    { "type": "text", "id": "app_url", "label": "App URL", "default": "https://aniket-review-app.myshopify.com/" }
+  ]
+}
+{% endschema %}
+
+<!-- Include Vanilla JavaScript -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const starContainer = document.getElementById('star-container');
+    const stars = starContainer?.querySelectorAll('.star');
+    const currentRatingElem = document.getElementById('current-rating');
+    const recommendationElem = document.getElementById('recommendation');
+    const reviewForm = document.getElementById('simpleForm');
+    const reviewDisplay = document.getElementById('review-display');
+    const reviewTextElem = document.getElementById('review-text');
+
+    // Configuration from Liquid settings
+    const starColor = "{{ block.settings.colour }}";
+    const appUrl = "http://localhost:41051/"; // Dynamically set from Liquid
+    const productId = "{{ block.settings.product.id }}";
+    const shop = "{{ shop.permanent_domain }}";
+    let currentRating = 0;  // Start with default rating of 0
+    let hoverRating = 0;
+
+    // Initialize customer data
+    {% if customer %}
+      const customer = {
+        id: "{{ customer.id }}",
+        firstName: "{{ customer.first_name | escape }}",
+        lastName: "{{ customer.last_name | escape }}",
+        email: "{{ customer.email | escape }}"
+        // Add more fields as needed
+      };
+      console.log("Logged in customer:", customer);
+    {% else %}
+      const customer = null;
+      console.log("No customer is logged in.");
+    {% endif %}
+
+    // Initialize star colors
+    function updateStars() {
+      stars.forEach(star => {
+        const starValue = parseInt(star.getAttribute('data-star'));
+        if (hoverRating >= starValue) {
+          star.style.color = '#FFD700'; // Gold for hover
+        } else if (starValue <= currentRating) {
+          star.style.color = starColor;
+        } else {
+          star.style.color = '#ccc';
+        }
+      });
+    }
+
+    // Update current rating display
+    function updateCurrentRating() {
+      currentRatingElem.textContent = `Average Rating: ${currentRating.toFixed(1)}`;
+      if (currentRating >= 4) {
+        recommendationElem.style.display = 'flex';
+      } else {
+        recommendationElem.style.display = 'none';
+      }
+    }
+
+    // Submit rating to the server
+    function submitRating(rating) {
+      if (!customer) {
+        console.log('Please log in to submit your rating.');
+        window.location.href = '/account/login';
+        return;
+      }
+
+      const payload = {
+        productId: productId,
+        rating: rating,
+        shop: shop,
+        customerId: customer.id
+      };
+
+      fetch(`${appUrl}api/rating`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(data => {
+        if(data.ok){
+          // After successful submission, fetch the latest average rating
+          fetchLatestRating();
+          console.log('Thank you for your rating!');
+        } else {
+          console.log(data.message || 'There was an error submitting your rating. Please try again.');
+        }
+      })
+      .catch(error => {
+        console.error('Error submitting rating:', error);
+        console.log('There was an error submitting your rating. Please try again.');
+      });
+    }
+
+    // Fetch the latest average rating for the product after submitting a new rating
+    function fetchLatestRating() {
+      fetch(`${appUrl}api/rating?productId=${productId}&shop=${shop}`, {
+        method: 'GET',
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok) {
+          currentRating = data.data.avg_rating || 0; // Use the retrieved average rating
+          updateStars();
+          updateCurrentRating();
+        } else {
+          console.log('There was an error fetching the current rating.');
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching current rating:', error);
+      });
+    }
+
+    // Event listeners for stars
+    stars.forEach(star => {
+      star.addEventListener('mouseover', () => {
+        hoverRating = parseInt(star.getAttribute('data-star'));
+        updateStars();
+      });
+
+      star.addEventListener('mouseout', () => {
+        hoverRating = 0;
+        updateStars();
+      });
+
+      star.addEventListener('click', () => {
+        const selectedRating = parseInt(star.getAttribute('data-star'));
+        submitRating(selectedRating);
+      });
+
+      // Accessibility: Allow keyboard navigation
+      star.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const selectedRating = parseInt(star.getAttribute('data-star'));
+          submitRating(selectedRating);
+        }
+      });
+    });
+
+    // Handle the review form submission
+    if (reviewForm) {
+      reviewForm.addEventListener('submit', (e) => {
+        e.preventDefault(); // Prevent the default form submission
+
+        const userInput = document.getElementById('userInput').value.trim();
+
+        if (!userInput) {
+          console.log('Please enter a review before submitting.');
+          return;
+        }
+
+        if (!customer) {
+          console.log('Please log in to submit your review.');
+          window.location.href = '/account/login';
+          return;
+        }
+
+        const reviewPayload = {
+          productId: productId,
+          shop: shop,
+          ratingDescription: userInput,
+          loggedIn: customer.email, // Include customer's email
+          clientId: customer.id
+        };
+
+        fetch(`${appUrl}api/review`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(reviewPayload)
+        })
+        .then(response => response.json())
+        .then(data => {
+          if(data.ok){
+            console.log('Your review has been submitted successfully!');
+            // Fetch the first review and update the UI
+            fetchFirstReviewDescription();
+            // Hide the form and show the review display
+            reviewForm.style.display = 'none';
+            reviewDisplay.style.display = 'block';
+          } else {
+            console.log(data.message || 'There was an error submitting your review. Please try again.');
+          }
+        })
+        .catch(error => {
+          console.error('Error submitting review:', error);
+          console.log('There was an error submitting your review. Please try again.');
+        });
+      });
+    }
+
+    // Function to fetch the first review's ratingDescription and set it to the input
+    function fetchFirstReviewDescription() {
+      const url = `${appUrl}api/review?productId=${productId}&shop=${shop}&client=${customer.id}`;
+      fetch(url, {
+        method: 'GET',
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok && data.reviews && data.reviews.length > 0) {
+          const firstReviewDescription = data.reviews[0].ratingDescription;
+          reviewTextElem.textContent = firstReviewDescription;
+          // Show the review display and hide the form
+          reviewDisplay.style.display = 'block';
+          if (reviewForm) {
+            reviewForm.style.display = 'none';
+          }
+          console.log('First review description set:', firstReviewDescription);
+        } else {
+          console.log('No reviews found or error fetching reviews.');
+          // Ensure the form is visible and the review display is hidden
+          if (reviewForm) {
+            reviewForm.style.display = 'block';
+          }
+          reviewDisplay.style.display = 'none';
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching first review description:', error);
+        // Ensure the form is visible and the review display is hidden
+        if (reviewForm) {
+          reviewForm.style.display = 'block';
+        }
+        reviewDisplay.style.display = 'none';
+      });
+    }
+
+    // Initial fetch and render
+    fetchLatestRating();
+    // Fetch and set the first review's ratingDescription
+    fetchFirstReviewDescription();
+  });
+</script>
+
+<style>
+  .star-rating {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .star-rating__container {
+    display: flex;
+    gap: 0.25rem;
+    cursor: pointer;
+  }
+  .star {
+    font-size: 2rem;
+    transition: color 0.2s;
+    color: #ccc; /* Default color */
+  }
+  .current-rating {
+    margin-top: 0.5rem;
+    font-size: 1rem;
+    color: #555;
+  }
+  .recommendation {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    color: #28a745; /* Green color for recommendation */
+  }
+  .recommendation img {
+    display: inline-block;
+  }
+  .customer-info {
+    margin-top: 1rem;
+    text-align: center;
+    color: #333;
+  }
+  .customer-info p {
+    margin: 0.25rem 0;
+  }
+  .guest-actions {
+    margin-top: 1rem;
+    text-align: center;
+  }
+  .sign-in-button {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: #007bff; /* Bootstrap primary color */
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+  }
+  .sign-in-button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+  }
+  .review-display {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    width: 100%;
+    max-width: 500px;
+  }
+  .success-message {
+    color: #28a745; /* Green color for success */
+    font-weight: bold;
+    margin-top: 0.5rem;
+  }
+</style>
